@@ -1,4 +1,66 @@
+# =========================
+# Node.js / Frontend
+# =========================
+# Node dependencies
 /node_modules/
+# Frontend build output
 /dist/
+# Frontend node modules si está en subcarpeta
 /frontend/node_modules/
-/frontend/package-lock.json/
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# ASP.NET Core / Backend
+# =========================
+# Build output
+/bin/
+ /obj/
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.vs/
+# Rider / JetBrains
+.idea/
+*.iml
+# Logs
+*.log
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# =========================
+# Docker
+# =========================
+# Docker volumes and temporary files
+docker-compose.override.yml
+docker-compose.dev.yml
+/letsencrypt/
+postgres_data/
+
+# =========================
+# OS files
+# =========================
+# macOS
+.DS_Store
+# Windows
+Thumbs.db
+Desktop.ini
+
+# =========================
+# Optional
+# =========================
+# Lock files: si quieres que npm regenere en cada deploy, puedes ignorar
+/package-lock.json
+/frontend/package-lock.json
