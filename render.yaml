@@ -1,12 +1,15 @@
 services:
   - type: web
     name: inventoryapp-api
-    env: docker
+    env: dotnet
     plan: free
     region: oregon
     branch: main
-    dockerfilePath: ./backend/Dockerfile
+    buildCommand: dotnet publish ./backend -c Release -o out
+    startCommand: dotnet out/Backend.dll
     envVars:
+      - key: ASPNETCORE_URLS
+        value: http://+:10000
       - key: ConnectionStrings__DefaultConnection
         fromDatabase:
           name: inventorydb
