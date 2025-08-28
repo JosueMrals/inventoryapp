@@ -68,7 +68,7 @@ services:
     build: ./backend
     container_name: inventoryapp-api
     environment:
-      - ConnectionStrings__DefaultConnection=postgresql://app:ZSqoCFAyJmFmEji6y42Pp3MHDkwUA3mM@dpg-d2nt22er433s73akrtjg-a.oregon-postgres.render.com/inventoryapp_postgres
+      - ConnectionStrings__DefaultConnection=Host=dpg-d2nt22er433s73akrtjg-a.oregon-postgres.render.com;Port=5432;Database=inventoryapp_postgres;Username=app;Password=ZSqoCFAyJmFmEji6y42Pp3MHDkwUA3mM;SSL Mode=Require;Trust Server Certificate=true;
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`api.${DOMAIN}`)"

@@ -1,61 +1,44 @@
-using Backend.Data;
-using Backend.Endpoints;
 using Microsoft.EntityFrameworkCore;
-using Serilog;
+using Backend.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Serilog Console
-Log.Logger = new LoggerConfiguration()
-.WriteTo.Console()
-.CreateLogger();
-builder.Host.UseSerilog();
-
-
-// Config DB
-var provider = builder.Configuration["Database:Provider"] ?? "Postgres";
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
-
-// Swagger (solo Dev)
+// Add services to the container.
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// CORS
-var allowed = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? ["*"];
-builder.Services.AddCors(o =>
-{
-    o.AddPolicy("CorsPolicy", b => b.WithOrigins(allowed)
-    .AllowAnyHeader()
-    .AllowAnyMethod());
-});
-
-// Health Checks
-builder.Services.AddHealthChecks();
+// Configurar la DB (usa la variable de entorno ConnectionStrings__DefaultConnection)
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+);
 
 var app = builder.Build();
 
-app.UseCors("CorsPolicy");
-app.MapHealthChecks("/health");
-
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-// Auto-crear DB (prototipo). Para prod, usa Migraciones.
-using (var scope = app.Services.CreateScope())
-{
-var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-if (provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
-    db.Database.EnsureCreated();
 else
-    db.Database.Migrate(); // asume migraciones compiladas si las generas
+{
+    // En producción también podemos habilitar Swagger opcionalmente:
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Inventory API v1");
+        c.RoutePrefix = "swagger"; // Para acceder en /swagger
+    });
 }
 
-app.MapGet("/health", () => Results.Ok("OK"));
-app.MapItems();
+app.UseHttpsRedirection();
+app.UseAuthorization();
+
+// Endpoint raíz de prueba
+app.MapGet("/", () => "Inventory API is running 🚀");
+
+// Mapear controllers
+app.MapControllers();
 
 app.Run();
