@@ -1,5 +1,4 @@
-node_modules/
-dist/
-build/
-frontend/node_modules/
-frontend/package-lock.json
+/node_modules/
+/dist/
+/frontend/node_modules/
+/frontend/package-lock.json/
