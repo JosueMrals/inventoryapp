@@ -1,22 +1,21 @@
-import { useProducts } from "./hooks/useProducts";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Sidebar from "./components/Sidebar";
+import Dashboard from "./pages/Dashboard";
+import Products from "./pages/Products";
 
 function App() {
-  const { data, isLoading, error } = useProducts();
-
-  if (isLoading) return <p>Cargando productos...</p>;
-  if (error) return <p>Error al cargar productos</p>;
-
   return (
-    <div>
-      <h1>Productos</h1>
-      <ul>
-        {data?.map((prod) => (
-          <li key={prod.id}>
-            {prod.name} - ${prod.price}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Router>
+      <div className="flex">
+        <Sidebar />
+        <div className="flex-1 p-4">
+          <Routes>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/products" element={<Products />} />
+          </Routes>
+        </div>
+      </div>
+    </Router>
   );
 }
 
