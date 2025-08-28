@@ -2,9 +2,7 @@ using Backend.Data;
 using Backend.Models;
 using Microsoft.EntityFrameworkCore;
 
-
 namespace Backend.Endpoints;
-
 
 public static class ItemsEndpoints
 {
