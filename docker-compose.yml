@@ -1,0 +1,85 @@
+version: "3.9"
+
+networks:
+  proxy:
+    external: false  # Compose crea la red automáticamente
+
+services:
+  # -------------------- Traefik --------------------
+  reverse-proxy:
+    image: traefik:v3.1
+    container_name: reverse-proxy
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.myresolver.acme.email=${EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+      - ./cloudflare.ini:/cloudflare.ini:ro
+    environment:
+      - CF_API_EMAIL=${EMAIL}          # Email de Cloudflare
+      - CF_API_KEY=${CLOUDFLARE_API_KEY}  # API Key o Token
+    networks:
+      - proxy
+
+  # -------------------- Frontend --------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`app.${DOMAIN}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+    restart: unless-stopped
+    networks:
+      - proxy
+
+  # -------------------- PostgreSQL --------------------
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: inventorydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - proxy
+
+  # -------------------- API ASP.NET Core --------------------
+  api:
+    build: ./backend
+    container_name: inventoryapp-api
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=inventorydb;Username=app;Password=${POSTGRES_PASSWORD}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`api.${DOMAIN}`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=myresolver"
+      - "traefik.http.services.api.loadbalancer.server.port=8080"
+    depends_on:
+      - postgres
+    networks:
+      - proxy
+
+volumes:
+  postgres_data:
+  letsencrypt:

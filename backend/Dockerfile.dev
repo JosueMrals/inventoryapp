@@ -1,0 +1,16 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS dev
+WORKDIR /app
+
+# Copiar csproj y restaurar
+COPY *.csproj ./
+RUN dotnet restore
+
+# Copiar código fuente
+COPY . ./
+
+# Instala dotnet-watch para hot reload
+RUN dotnet tool install --global dotnet-watch
+ENV PATH="$PATH:/root/.dotnet/tools"
+
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "watch", "run", "--urls", "http://0.0.0.0:8080"]
