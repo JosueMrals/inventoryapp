@@ -13,26 +13,34 @@ export default function ProductsPage() {
   const [newName, setNewName] = useState("");
   const [newPrice, setNewPrice] = useState(0);
 
+  // Leer productos desde la API
   const { data: products = [], isLoading } = useQuery<Product[]>(
     ["products"],
-    async () => (await api.get("/products")).data
+    async () => {
+      const res = await api.get("/products");
+      return res.data;
+    }
   );
 
+  // Agregar producto
   const addMutation = useMutation(
     (product: Omit<Product, "id">) => api.post("/products", product),
-    { onSuccess: () => queryClient.invalidateQueries(["products"]) }
+    {
+      onSuccess: () => queryClient.invalidateQueries(["products"]),
+    }
   );
 
+  // Eliminar producto
   const deleteMutation = useMutation(
     (id: number) => api.delete(`/products/${id}`),
     { onSuccess: () => queryClient.invalidateQueries(["products"]) }
   );
 
-  if (isLoading) return <p>Cargando...</p>;
+  if (isLoading) return <p>Cargando productos...</p>;
 
   return (
-    <div>
-      <h1 className="text-xl font-bold mb-4">Productos</h1>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Productos</h1>
 
       <div className="flex gap-2 mb-4">
         <input
