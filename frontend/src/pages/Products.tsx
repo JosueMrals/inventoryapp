@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Product, getProducts } from "@/api/products";
+import { Product, getProducts } from "../api/products";
 
 const Products = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -22,7 +22,6 @@ const Products = () => {
             <th>ID</th>
             <th>Nombre</th>
             <th>Precio</th>
-            <th>Stock</th>
           </tr>
         </thead>
         <tbody>
@@ -31,7 +30,6 @@ const Products = () => {
               <td>{p.id}</td>
               <td>{p.name}</td>
               <td>{p.price}</td>
-              <td>{p.stock}</td>
             </tr>
           ))}
         </tbody>
