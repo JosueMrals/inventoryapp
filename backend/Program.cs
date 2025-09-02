@@ -1,43 +1,53 @@
 using Backend.Data;
 using Backend.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Conexión PostgreSQL
-var connectionString = builder.Configuration.GetConnectionString("ConnectionStrings__DefaultConnection");
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+// 🔹 Configuración de CORS
+var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: MyAllowSpecificOrigins,
+        policy =>
+        {
+            policy
+                .WithOrigins(
+                    "http://localhost:5173",
+                    "https://inventoryapp-mocha.vercel.app"
+                )
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+});
+
+// 🔹 Agregar servicios
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// 🔹 Configuración de base de datos (ejemplo con PostgreSQL en Render)
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("ConnectionStrings__DefaultConnection"))
+);
+
 var app = builder.Build();
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-app.Urls.Add($"http://*:{port}");
 
-using (var scope = app.Services.CreateScope())
+// 🔹 Middleware
+if (app.Environment.IsDevelopment())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate(); // Aplica migraciones automáticamente
-
-    // Verifica si no hay productos y agrega algunos
-    if (!db.Products.Any())
-    {
-        db.Products.AddRange(
-            new Product { Name = "Laptop", Price = 1200 },
-            new Product { Name = "Mouse", Price = 25 },
-            new Product { Name = "Teclado", Price = 45 },
-            new Product { Name = "Monitor", Price = 300 }
-        );
-        db.SaveChanges();
-    }
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
-app.UseSwagger();
-app.UseSwaggerUI();
+// 🔹 Habilitar CORS antes de MapControllers
+app.UseCors(MyAllowSpecificOrigins);
 
+app.UseHttpsRedirection();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
