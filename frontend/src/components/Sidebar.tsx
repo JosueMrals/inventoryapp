@@ -6,7 +6,7 @@ interface SidebarProps {
 
 export default function Sidebar({ onNavigate }: SidebarProps) {
   return (
-    <aside className="w-64 bg-gray-900 text-white flex flex-col">
+    <aside className="w-60 bg-gray-900 text-white flex flex-col">
       <div className="p-4 font-bold text-lg border-b border-gray-700">
         Inventario
       </div>
