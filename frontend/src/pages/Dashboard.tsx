@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Products from "./Products";
+import ProductsPage from "./ProductsPage";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function Dashboard() {
@@ -20,7 +21,7 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {page === "products" && <Products />}
+        {page === "products" && <ProductsPage />}
       </main>
     </div>
   );
