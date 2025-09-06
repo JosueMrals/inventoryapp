@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Sidebar from "../components/Sidebar";
-import ProductsPage from "./ProductsPage";
+import ProductsPage from "../components/Products/ProductsPage";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function Dashboard() {
