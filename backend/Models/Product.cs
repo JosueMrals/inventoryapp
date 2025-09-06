@@ -11,4 +11,7 @@ public class Product
 
     [Range(0.01, double.MaxValue, ErrorMessage = "El precio debe ser mayor a 0.")]
     public decimal Price { get; set; }
+    public string Barcode { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? ImageUrl { get; set; }
 }

@@ -1,83 +1,106 @@
-import { useState, useEffect } from "react";
-import { Product } from "@/hooks/useProducts";
+import { useForm } from "react-hook-form";
+import { Product } from "@/types";
 
 interface ProductFormProps {
-  product?: Product;
+  initialData?: Product | null;
   onSubmit: (data: Omit<Product, "id">) => void;
-  onCancel?: () => void;
+  onCancel: () => void;
 }
 
-export default function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
-  const [name, setName] = useState(product?.name || "");
-  const [price, setPrice] = useState(product?.price.toString() || "");
-  const [nameError, setNameError] = useState("");
-  const [priceError, setPriceError] = useState("");
-
-  useEffect(() => {
-    setName(product?.name || "");
-    setPrice(product?.price.toString() || "");
-    setNameError("");
-    setPriceError("");
-  }, [product]);
-
-  const handleSubmit = () => {
-    let valid = true;
-
-    if (!name.trim()) {
-      setNameError("El nombre no puede estar vacío.");
-      valid = false;
-    } else setNameError("");
-
-    const parsedPrice = Number(price);
-    if (!price || isNaN(parsedPrice) || parsedPrice <= 0) {
-      setPriceError("El precio debe ser mayor a 0.");
-      valid = false;
-    } else setPriceError("");
-
-    if (!valid) return;
-
-    onSubmit({ name: name.trim(), price: parsedPrice });
-    setName("");
-    setPrice("");
-  };
+export default function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProps) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<Omit<Product, "id">>({
+    defaultValues: initialData ?? {
+      name: "",
+      price: 0,
+      barcode: "",
+      description: "",
+      imageUrl: "",
+    },
+  });
 
   return (
-    <div className="flex flex-col gap-2 w-80 mb-4">
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Nombre"
-        className="border p-2 rounded"
-      />
-      {nameError && <p className="text-red-600 text-sm">{nameError}</p>}
-
-      <input
-        type="number"
-        step="0.01"
-        min="0"
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
-        placeholder="Precio"
-        className="border p-2 rounded"
-      />
-      {priceError && <p className="text-red-600 text-sm">{priceError}</p>}
-
-      <div className="flex gap-2">
-        <button
-          onClick={handleSubmit}
-          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
-        >
-          {product ? "Actualizar" : "Agregar"}
-        </button>
-        {product && onCancel && (
-          <button
-            onClick={onCancel}
-            className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 transition"
-          >
-            Cancelar
-          </button>
-        )}
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-4 p-4"
+    >
+      {/* Nombre */}
+      <div>
+        <label className="block font-semibold">Nombre</label>
+        <input
+          {...register("name", { required: "El nombre es obligatorio" })}
+          placeholder="Ej. Coca Cola"
+          className="border p-2 rounded w-full"
+        />
+        {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
       </div>
-    </div>
+
+      {/* Precio */}
+      <div>
+        <label className="block font-semibold">Precio</label>
+        <input
+          type="number"
+          step="0.01"
+          {...register("price", {
+            required: "El precio es obligatorio",
+            min: { value: 0.01, message: "El precio debe ser mayor que 0" },
+          })}
+          placeholder="Ej. 25.50"
+          className="border p-2 rounded w-full"
+        />
+        {errors.price && <p className="text-red-500 text-sm">{errors.price.message}</p>}
+      </div>
+
+      {/* Código de barras */}
+      <div>
+        <label className="block font-semibold">Código de Barras</label>
+        <input
+          {...register("barcode", { required: "El código de barras es obligatorio" })}
+          placeholder="Ej. 7501035910109"
+          className="border p-2 rounded w-full"
+        />
+        {errors.barcode && <p className="text-red-500 text-sm">{errors.barcode.message}</p>}
+      </div>
+
+      {/* Descripción */}
+      <div>
+        <label className="block font-semibold">Descripción</label>
+        <textarea
+          {...register("description")}
+          placeholder="Ej. Bebida gaseosa de 600ml"
+          className="border p-2 rounded w-full"
+        />
+      </div>
+
+      {/* Imagen */}
+      <div>
+        <label className="block font-semibold">Foto (URL opcional)</label>
+        <input
+          {...register("imageUrl")}
+          placeholder="Ej. https://misfotos.com/cocacola.jpg"
+          className="border p-2 rounded w-full"
+        />
+      </div>
+
+      {/* Acciones */}
+      <div className="flex justify-end space-x-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 transition"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+        >
+          {initialData ? "Actualizar" : "Guardar"}
+        </button>
+      </div>
+    </form>
   );
 }

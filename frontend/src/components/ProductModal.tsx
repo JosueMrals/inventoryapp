@@ -1,93 +1,47 @@
-import { useState, useEffect } from "react";
-import { Product } from "@/types";
-import { UseMutateFunction } from "@tanstack/react-query";
+import { ReactNode } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ProductModalProps {
-  product?: Product | null;
+  isOpen: boolean;
   onClose: () => void;
-  onSave: UseMutateFunction<Product, unknown, Omit<Product, "id"> | Product, unknown>;
+  title?: string;
+  children: ReactNode;
 }
 
-export default function ProductModal({ product, onClose, onSave }: ProductModalProps) {
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState<string>("");
-
-  const [nameError, setNameError] = useState("");
-  const [priceError, setPriceError] = useState("");
-
-  useEffect(() => {
-    if (product) {
-      setName(product.name);
-      setPrice(product.price.toString());
-    } else {
-      setName("");
-      setPrice("");
-    }
-  }, [product]);
-
-  const handleSubmit = () => {
-    let valid = true;
-    if (!name.trim()) {
-      setNameError("El nombre no puede estar vacío");
-      valid = false;
-    } else setNameError("");
-
-    const parsedPrice = Number(price);
-    if (!price || isNaN(parsedPrice) || parsedPrice <= 0) {
-      setPriceError("El precio debe ser mayor a 0");
-      valid = false;
-    } else setPriceError("");
-
-    if (!valid) return;
-
-    if (product) {
-      onSave({ ...product, name: name.trim(), price: parsedPrice });
-    } else {
-      onSave({ name: name.trim(), price: parsedPrice });
-    }
-
-    onClose();
-  };
-
+export default function ProductModal({ isOpen, onClose, title, children }: ProductModalProps) {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center">
-      <div className="bg-white p-4 rounded w-80">
-        <h2 className="text-xl font-bold mb-4">{product ? "Editar Producto" : "Agregar Producto"}</h2>
-
-        <input
-          placeholder="Nombre"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="border p-2 rounded w-full mb-1"
-        />
-        {nameError && <p className="text-red-600 text-sm mb-2">{nameError}</p>}
-
-        <input
-          placeholder="Precio"
-          type="number"
-          step="0.01"
-          min="0"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          className="border p-2 rounded w-full mb-1"
-        />
-        {priceError && <p className="text-red-600 text-sm mb-2">{priceError}</p>}
-
-        <div className="flex gap-2 justify-end mt-2">
-          <button
-            onClick={onClose}
-            className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 transition"
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 relative"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ duration: 0.2 }}
           >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
-          >
-            {product ? "Actualizar" : "Agregar"}
-          </button>
-        </div>
-      </div>
-    </div>
+            {/* Header */}
+            <div className="flex justify-between items-center border-b pb-3 mb-4">
+              <h2 className="text-xl font-semibold">{title}</h2>
+              <button
+                onClick={onClose}
+                className="text-gray-500 hover:text-gray-700 transition"
+                aria-label="Cerrar modal"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Contenido dinámico */}
+            <div className="space-y-4">{children}</div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
