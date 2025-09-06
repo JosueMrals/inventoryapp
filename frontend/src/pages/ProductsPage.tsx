@@ -1,102 +1,104 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/api/axios";
-import { useState, useMemo } from "react";
-import { Product } from "@/types";
-import ProductForm from "@/components/ProductForm";
+import { useState, useMemo, useEffect } from "react";
 import ProductModal from "@/components/ProductModal";
+
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+  description?: string;
+  barcode?: string;
+  image?: string; // siempre string o undefined
+}
 
 export default function ProductsPage() {
   const queryClient = useQueryClient();
 
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  // Estados
+  const [modalProduct, setModalProduct] = useState<Product | null>(null);
+  const [barcodeInput, setBarcodeInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Leer productos
-  const { data: products = [], isLoading } = useQuery<Product[], import("axios").AxiosError>(
+  const { data: products = [], isLoading } = useQuery<Product[], any>(
     ["products"],
-    async ({ signal }) => {
-      const res = await api.get<Product[]>("/api/products", { signal });
+    async () => {
+      const res = await api.get("/api/products");
       return res.data;
-    },
-    { staleTime: 60_000, retry: 2 }
+    }
+  );
+
+  // Mutaciones
+  const addMutation = useMutation<Product, any, Omit<Product, "id">>(
+    (product) => api.post("/api/products", product).then(res => res.data),
+    {
+      onSuccess: (newProduct) => {
+        queryClient.setQueryData<Product[]>(["products"], (old) => old ? [...old, newProduct] : [newProduct]);
+        setModalProduct(null);
+      },
+    }
+  );
+
+  const editMutation = useMutation<Product, any, Product>(
+    (product) => api.put(`/api/products/${product.id}`, product).then(res => res.data),
+    {
+      onSuccess: (updated) => {
+        queryClient.setQueryData<Product[]>(["products"], (old) =>
+          old ? old.map((p) => (p.id === updated.id ? updated : p)) : [updated]
+        );
+        setModalProduct(null);
+      },
+    }
+  );
+
+  const deleteMutation = useMutation<number, any, number>(
+    (id) => api.delete(`/api/products/${id}`).then(() => id),
+    {
+      onSuccess: (id) => {
+        queryClient.setQueryData<Product[]>(["products"], (old) =>
+          old ? old.filter((p) => p.id !== id) : []
+        );
+      },
+    }
   );
 
   // Filtrado en tiempo real
   const filteredProducts = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = searchQuery.trim().toLowerCase();
     if (!q) return products;
     return products.filter((p) =>
-      [p.name, p.barcode, String(p.id), String(p.price), p.description ?? ""]
-        .join(" ")
-        .toLowerCase()
-        .includes(q)
+      p.name.toLowerCase().includes(q) ||
+      String(p.id).includes(q) ||
+      String(p.price).includes(q) ||
+      (p.barcode?.toLowerCase().includes(q))
     );
-  }, [products, query]);
+  }, [products, searchQuery]);
 
-  // Agregar
-  const addMutation = useMutation<Product, import("axios").AxiosError, Omit<Product, "id">>(
-    async (product) => {
-      const res = await api.post<Product>("/api/products", product);
-      return res.data;
-    },
-    {
-      onSuccess: (newProduct) => {
-        queryClient.setQueryData<Product[] | undefined>(["products"], (old) =>
-          old ? [...old, newProduct] : [newProduct]
-        );
-        setIsModalOpen(false);
-      },
-    }
-  );
+  // Manejo de modal
+  const handleEdit = (product: Product) => setModalProduct(product);
 
-  // Editar
-  const editMutation = useMutation<Product, import("axios").AxiosError, Product>(
-    async (product) => {
-      const res = await api.put<Product>(`/api/products/${product.id}`, product);
-      return res.data;
-    },
-    {
-      onSuccess: (updated) => {
-        queryClient.setQueryData<Product[] | undefined>(["products"], (old) =>
-          old ? old.map((p) => (p.id === updated.id ? updated : p)) : [updated]
-        );
-        setIsModalOpen(false);
-      },
-    }
-  );
-
-  // Eliminar
-  const deleteMutation = useMutation<number, import("axios").AxiosError, number>(
-    async (id) => {
-      await api.delete(`/api/products/${id}`);
-      return id;
-    },
-    {
-      onMutate: async (id) => {
-        await queryClient.cancelQueries(["products"]);
-        const previous = queryClient.getQueryData<Product[]>(["products"]);
-        queryClient.setQueryData<Product[] | undefined>(["products"], (old) =>
-          old ? old.filter((p) => p.id !== id) : []
-        );
-        return { previous };
-      },
-      onError: (_, __, context: any) => {
-        if (context?.previous) queryClient.setQueryData(["products"], context.previous);
-      },
-      onSettled: () => {
-        queryClient.invalidateQueries(["products"]);
-      },
-    }
-  );
-
-  const handleSave = (data: Omit<Product, "id">) => {
-    if (selectedProduct) {
-      editMutation.mutate({ ...selectedProduct, ...data });
-    } else {
-      addMutation.mutate(data);
-    }
+  const handleBarcodeScan = (code: string) => {
+    const found = products.find((p) => p.barcode === code);
+    if (found) setModalProduct(found);
+    else setModalProduct({ id: 0, name: "", price: 0, barcode: code });
   };
+
+  // Detectar código de barras automáticamente
+  useEffect(() => {
+    let buffer = "";
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        const code = buffer.trim();
+        if (code) handleBarcodeScan(code);
+        buffer = "";
+      } else {
+        buffer += e.key;
+      }
+    };
+    window.addEventListener("keypress", handler);
+    return () => window.removeEventListener("keypress", handler);
+  }, [products]);
 
   if (isLoading) return <p>Cargando productos...</p>;
 
@@ -107,76 +109,53 @@ export default function ProductsPage() {
       {/* Buscador */}
       <div className="mb-4 w-80">
         <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar por nombre, código, id, precio..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Buscar por nombre, id, precio o código..."
           className="border p-2 rounded w-full"
         />
       </div>
 
-      {/* Botón agregar */}
-      <button
-        onClick={() => {
-          setSelectedProduct(null);
-          setIsModalOpen(true);
-        }}
-        className="mb-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-      >
-        + Agregar Producto
-      </button>
-
       {/* Tabla */}
-      <table className="border w-full text-sm">
+      <table className="border w-full mb-4">
         <thead>
-          <tr className="bg-gray-100 text-left">
-            <th className="border px-2 py-1">Foto</th>
-            <th className="border px-2 py-1">Código</th>
-            <th className="border px-2 py-1">Nombre</th>
-            <th className="border px-2 py-1">Precio</th>
-            <th className="border px-2 py-1">Descripción</th>
-            <th className="border px-2 py-1">Acciones</th>
+          <tr className="bg-gray-100">
+            <th className="border px-2">ID</th>
+            <th className="border px-2">Nombre</th>
+            <th className="border px-2">Precio</th>
+            <th className="border px-2">Código</th>
+            <th className="border px-2">Acciones</th>
           </tr>
         </thead>
         <tbody>
           {filteredProducts.map((p) => (
             <tr key={p.id}>
-              <td className="border px-2 py-1">
-                {p.imageUrl ? (
-                  <img src={p.imageUrl} alt={p.name} className="w-12 h-12 object-cover rounded" />
-                ) : (
-                  <span className="text-gray-400">Sin foto</span>
-                )}
-              </td>
-              <td className="border px-2 py-1">{p.barcode}</td>
-              <td className="border px-2 py-1">{p.name}</td>
-              <td className="border px-2 py-1">${p.price.toFixed(2)}</td>
-              <td className="border px-2 py-1">{p.description || "—"}</td>
-              <td className="border px-2 py-1 space-x-2">
+              <td className="border px-2">{p.id}</td>
+              <td className="border px-2">{p.name}</td>
+              <td className="border px-2">${p.price}</td>
+              <td className="border px-2">{p.barcode || "-"}</td>
+              <td className="border px-2 flex gap-2">
                 <button
-                  onClick={() => {
-                    setSelectedProduct(p);
-                    setIsModalOpen(true);
-                  }}
-                  className="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
+                  className="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 transition"
+                  onClick={() => handleEdit(p)}
                 >
                   Editar
                 </button>
                 <button
+                  className="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 transition"
                   onClick={() => {
                     if (!confirm(`¿Eliminar "${p.name}"?`)) return;
                     deleteMutation.mutate(p.id);
                   }}
-                  disabled={deleteMutation.isLoading}
-                  className="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 disabled:opacity-50"
                 >
-                  {deleteMutation.isLoading ? "Eliminando..." : "Eliminar"}
+                  Eliminar
                 </button>
               </td>
             </tr>
           ))}
           {filteredProducts.length === 0 && (
             <tr>
-              <td colSpan={6} className="text-center py-4 text-gray-500">
+              <td colSpan={5} className="text-center py-4 text-gray-500">
                 No hay productos que coincidan.
               </td>
             </tr>
@@ -185,17 +164,33 @@ export default function ProductsPage() {
       </table>
 
       {/* Modal */}
-      <ProductModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={selectedProduct ? "Editar Producto" : "Agregar Producto"}
-      >
-        <ProductForm
-          initialData={selectedProduct}
-          onSubmit={handleSave}
-          onCancel={() => setIsModalOpen(false)}
+      {modalProduct && (
+        <ProductModal
+          product={modalProduct.id === 0 ? undefined : modalProduct}
+          onClose={() => setModalProduct(null)}
+          onSubmit={(data) => {
+            // Convertimos image a string antes de mutar
+            let imageValue: string | undefined = undefined;
+            if (typeof data.image === "string") imageValue = data.image;
+
+            const payload: Product = {
+              ...modalProduct,
+              name: data.name,
+              price: data.price,
+              description: data.description,
+              barcode: data.barcode,
+              image: imageValue,
+              id: modalProduct.id,
+            };
+
+            if (modalProduct.id === 0) {
+              addMutation.mutate(payload);
+            } else {
+              editMutation.mutate(payload);
+            }
+          }}
         />
-      </ProductModal>
+      )}
     </div>
   );
 }
