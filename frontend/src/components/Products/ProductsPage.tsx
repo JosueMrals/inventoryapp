@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import ProductModal from "./ProductModal";
 import ProductTable from "./ProductTable";
@@ -7,14 +6,22 @@ import Pagination from "./Pagination";
 import { Product } from "@/types";
 import { db } from "@/offline/db";
 import { initSyncManager, isOnline } from "@/offline/syncManager";
+import api from "@/api/axios";
 
 const PAGE_SIZE = 20;
 
+// Type guard seguro para File (evita problemas con instanceof en TS)
 function isFile(value: unknown): value is File {
-  return value instanceof File;
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "name" in value &&
+    "size" in value &&
+    "type" in value
+  );
 }
 
-// Excluimos id para evitar enviarlo al backend
+// Crea FormData sin incluir id
 function createFormData(data: Omit<Product, "id"> | Product) {
   const formData = new FormData();
   formData.append("name", data.name);
@@ -22,16 +29,45 @@ function createFormData(data: Omit<Product, "id"> | Product) {
   if (data.description) formData.append("description", data.description);
   if (data.barcode) formData.append("barcode", data.barcode);
   if (data.image) {
-    if (isFile(data.image)) formData.append("image", data.image);
-    else if (typeof data.image === "string") formData.append("image", data.image);
+    if (isFile(data.image)) {
+      formData.append("image", data.image);
+    } else if (typeof data.image === "string") {
+      formData.append("image", data.image);
+    }
   }
   return formData;
 }
 
+// Helpers para normalizar respuestas del backend
+function hasData<T>(payload: unknown): payload is { data: T } {
+  return (
+    !!payload &&
+    typeof payload === "object" &&
+    "data" in (payload as any) &&
+    !Array.isArray((payload as any).data)
+  );
+}
+
+function hasArrayData<T>(payload: unknown): payload is { data: T[] } {
+  return (
+    !!payload &&
+    typeof payload === "object" &&
+    Array.isArray((payload as any).data)
+  );
+}
+
+function normalizeEntityResponse<T>(payload: unknown): T {
+  return hasData<T>(payload) ? (payload as { data: T }).data : (payload as T);
+}
+
+function normalizeCollectionResponse<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (hasArrayData<T>(payload)) return (payload as { data: T[] }).data;
+  throw new Error("Formato de respuesta inesperado");
+}
+
 export default function ProductsPage() {
-  const queryClient = useQueryClient();
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
-  const [barcodeInput, setBarcodeInput] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +75,7 @@ export default function ProductsPage() {
   // Ref para input oculto de código de barras
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
-  // Inicializa el sync manager
+  // Inicializa el sync manager con callback para refrescar estado desde IndexedDB
   useEffect(() => {
     initSyncManager(setProducts);
   }, []);
@@ -50,17 +86,17 @@ export default function ProductsPage() {
       setLoading(true);
       try {
         if (isOnline()) {
-          const res = await fetch("/api/products");
-          const data: Product[] = await res.json();
-          setProducts(data);
+          const res = await api.get("/api/products");
+          const list = normalizeCollectionResponse<Product>(res.data);
+          setProducts(list);
           await db.products.clear();
-          await db.products.bulkPut(data);
+          await db.products.bulkPut(list);
         } else {
           const local = await db.products.toArray();
           setProducts(local);
         }
       } catch (err) {
-        console.error(err);
+        console.error("[LOAD] Error desde backend. Intentando IndexedDB:", err);
         const local = await db.products.toArray();
         setProducts(local);
       } finally {
@@ -70,38 +106,46 @@ export default function ProductsPage() {
     loadProducts();
   }, []);
 
-  // Guardar producto
+  // Guardar producto (create/update)
   const saveProduct = async (data: Omit<Product, "id">, id?: number) => {
-    // Si no hay id, generamos uno temporal negativo para distinguirlo
+    // Usa id temporal negativo si es nuevo
     const tempId = id ?? -Date.now();
     const product: Product = { ...data, id: tempId };
 
-    // Guardar local
+    // Guardar local inmediato (optimistic update)
     await db.products.put(product);
-
-    // Actualizar estado local inmediatamente
     setProducts((prev) =>
       id ? prev.map((p) => (p.id === id ? product : p)) : [...prev, product]
     );
 
     if (!isOnline()) {
-      // Offline: agregar operación pendiente
+      // Offline: cola de pendingOps para sync
       await db.pendingOps.add({ type: id ? "update" : "add", product });
       return;
     }
 
-    // Online: enviar al backend
+    // Online: enviar al backend con FormData
     const formData = createFormData(product);
     try {
-      const res = await fetch(id ? `/api/products/${id}` : "/api/products", {
+      const res = await api.request({
+        url: id ? `/api/products/${id}` : "/api/products",
         method: id ? "PUT" : "POST",
-        body: formData,
+        data: formData,
+        // No fijes Content-Type manual: axios lo añade con boundary
       });
-      if (!res.ok) throw new Error(`Error ${res.status}`);
 
-      const saved: Product = await res.json();
+      const saved = normalizeEntityResponse<Product>(res.data);
 
-      // Si era id temporal, actualizar IndexedDB y estado con id real
+      if (!saved || typeof saved.id !== "number") {
+        console.warn("[SAVE] Respuesta sin producto. Refrescando listado.");
+        const reload = await api.get("/api/products");
+        const list = normalizeCollectionResponse<Product>(reload.data);
+        setProducts(list);
+        await db.products.clear();
+        await db.products.bulkPut(list);
+        return;
+      }
+
       if (tempId < 0) {
         await db.products.delete(tempId);
       }
@@ -113,35 +157,31 @@ export default function ProductsPage() {
           : prev.map((p) => (p.id === saved.id ? saved : p))
       );
     } catch (err) {
-      console.error(err);
-      // En caso de error online, agregar a pendingOps para reintento
+      console.error("[SAVE] Error online. Encolando operación:", err);
       await db.pendingOps.add({ type: id ? "update" : "add", product });
     }
   };
 
   // Eliminar producto
   const deleteProduct = async (id: number) => {
-    // Borrar localmente
+    // Borrado local optimista
     await db.products.delete(id);
     setProducts((prev) => prev.filter((p) => p.id !== id));
 
     if (!isOnline()) {
-      // Offline: agregar operación pendiente
       await db.pendingOps.add({ type: "delete", product: { id } as Product });
       return;
     }
 
     try {
-      const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(`Error ${res.status}`);
+      await api.delete(`/api/products/${id}`);
     } catch (err) {
-      console.error(err);
-      // En caso de error online, agregar a pendingOps para reintento
+      console.error("[DELETE] Error online. Encolando operación:", err);
       await db.pendingOps.add({ type: "delete", product: { id } as Product });
     }
   };
 
-  // Manejo mejorado del input de código de barras con input oculto
+  // Input oculto para escáner
   useEffect(() => {
     const input = barcodeInputRef.current;
     if (!input) return;

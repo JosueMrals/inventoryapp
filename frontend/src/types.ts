@@ -4,5 +4,5 @@ export interface Product {
   price: number;
   barcode?: string;
   description?: string;
-  image?: string;
+  image?: string | File; // File al enviar, string (URL) al recibir
 }
