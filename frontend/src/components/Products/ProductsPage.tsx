@@ -220,14 +220,20 @@ export default function ProductsPage() {
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Productos</h1>
 
-      <ProductSearch products={products} onSelect={(p) => setModalProduct(p)} />
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-end gap-3">
+        <ProductSearch
+          products={products}
+          onSelect={(p) => setModalProduct(p)}
+          className="mb-0 w-full sm:w-96" // override de ancho y margen
+        />
 
-      <button
-        onClick={() => setModalProduct({ id: 0, name: "", price: 0 })}
-        className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-      >
-        Agregar Producto
-      </button>
+        <button
+          onClick={() => setModalProduct({ id: 0, name: "", price: 0 })}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 self-start sm:self-auto"
+        >
+          Agregar Producto
+        </button>
+      </div>
 
       <ProductTable
         products={currentProducts}
