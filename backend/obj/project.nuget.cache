@@ -1,9 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "gHhn0VNR6Ow=",
+  "dgSpecHash": "FDewOGj9Zpc=",
   "success": true,
   "projectFilePath": "C:\\Users\\JOSUE-PC\\Documents\\InventoryApp\\backend\\Backend.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\JOSUE-PC\\.nuget\\packages\\awssdk.core\\4.0.0.26\\awssdk.core.4.0.0.26.nupkg.sha512",
+    "C:\\Users\\JOSUE-PC\\.nuget\\packages\\awssdk.s3\\4.0.7.1\\awssdk.s3.4.0.7.1.nupkg.sha512",
     "C:\\Users\\JOSUE-PC\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\JOSUE-PC\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\6.0.0\\microsoft.bcl.asyncinterfaces.6.0.0.nupkg.sha512",
     "C:\\Users\\JOSUE-PC\\.nuget\\packages\\microsoft.codeanalysis.analyzers\\3.3.3\\microsoft.codeanalysis.analyzers.3.3.3.nupkg.sha512",

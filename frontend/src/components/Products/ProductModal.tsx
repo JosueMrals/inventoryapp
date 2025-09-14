@@ -12,52 +12,53 @@ export default function ProductModal({ product, onClose, onSubmit }: ProductModa
   const [price, setPrice] = useState(product?.price.toString() || "");
   const [description, setDescription] = useState(product?.description || "");
   const [barcode, setBarcode] = useState(product?.barcode || "");
-  const [image, setImage] = useState<File | string | null>(product?.image || null);
+  const [image, setImage] = useState<File | null>(null);
 
   const [nameError, setNameError] = useState("");
   const [priceError, setPriceError] = useState("");
 
-  // Validaciones
-  const validate = () => {
+  // Reset modal state al cambiar producto
+  useEffect(() => {
+    setName(product?.name || "");
+    setPrice(product?.price.toString() || "");
+    setDescription(product?.description || "");
+    setBarcode(product?.barcode || "");
+    setImage(null);
+    setNameError("");
+    setPriceError("");
+  }, [product]);
+
+  const handleSave = () => {
     let valid = true;
-    if (!name.trim()) { setNameError("El nombre es obligatorio."); valid = false; } 
-    else setNameError("");
+
+    if (!name.trim()) { 
+      setNameError("El nombre es obligatorio."); 
+      valid = false; 
+    } else setNameError("");
 
     const parsedPrice = Number(price);
-    if (!price || isNaN(parsedPrice) || parsedPrice <= 0) { setPriceError("El precio debe ser mayor a 0."); valid = false; } 
-    else setPriceError("");
+    if (!price || isNaN(parsedPrice) || parsedPrice <= 0) { 
+      setPriceError("El precio debe ser mayor a 0."); 
+      valid = false; 
+    } else setPriceError("");
 
-    return valid;
-  };
+    if (!valid) return;
 
-  // Guardar producto
-  const handleSave = () => {
-    if (!validate()) return;
-
-    onSubmit({
+    // Preparamos la data para enviar
+    const data: Omit<Product, "id"> = {
       name: name.trim(),
-      price: Number(price),
+      price: parsedPrice,
       description: description.trim(),
       barcode: barcode.trim(),
-      image: image instanceof File ? image.name : image || undefined,
-    });
+      image: typeof image === "string"
+        ? image
+        : (typeof product?.image === "string" ? product.image : undefined)
+    };
 
-    onClose();
+    onSubmit(data);  // llama a la mutación de ProductsPage
+    setImage(null);  // limpiamos input de imagen
+    onClose();       // cerramos modal
   };
-
-  // Mostrar preview de imagen si es File
-  const [preview, setPreview] = useState<string | null>(null);
-  useEffect(() => {
-    if (image && image instanceof File) {
-      const url = URL.createObjectURL(image);
-      setPreview(url);
-      return () => URL.revokeObjectURL(url);
-    } else if (typeof image === "string") {
-      setPreview(image);
-    } else {
-      setPreview(null);
-    }
-  }, [image]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -68,7 +69,7 @@ export default function ProductModal({ product, onClose, onSubmit }: ProductModa
           <input
             placeholder="Nombre"
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value)}
             className="border p-2 rounded"
           />
           {nameError && <p className="text-red-600 text-sm">{nameError}</p>}
@@ -77,7 +78,7 @@ export default function ProductModal({ product, onClose, onSubmit }: ProductModa
             type="number"
             placeholder="Precio"
             value={price}
-            onChange={e => setPrice(e.target.value)}
+            onChange={(e) => setPrice(e.target.value)}
             className="border p-2 rounded"
           />
           {priceError && <p className="text-red-600 text-sm">{priceError}</p>}
@@ -85,26 +86,33 @@ export default function ProductModal({ product, onClose, onSubmit }: ProductModa
           <input
             placeholder="Descripción"
             value={description}
-            onChange={e => setDescription(e.target.value)}
+            onChange={(e) => setDescription(e.target.value)}
             className="border p-2 rounded"
           />
 
           <input
             placeholder="Código de barras"
             value={barcode}
-            onChange={e => setBarcode(e.target.value)}
+            onChange={(e) => setBarcode(e.target.value)}
             className="border p-2 rounded"
           />
 
+          <label className="block text-sm font-medium text-gray-700">Imagen del producto</label>
           <input
-            type="file"
             placeholder="Imagen"
+            type="file"
             accept="image/*"
-            onChange={e => setImage(e.target.files?.[0] || null)}
+            onChange={(e) => setImage(e.target.files?.[0] || null)}
             className="border p-2 rounded"
           />
 
-          {preview && <img src={preview} alt="Preview" className="w-32 h-32 object-cover mt-2 rounded border" />}
+          {product?.image && typeof product.image === "string" && !image && (
+            <img src={product.image} alt={product.name} className="mt-2 w-24 h-24 object-cover border rounded" />
+          )}
+
+          {image && (
+            <img src={URL.createObjectURL(image)} alt="Nueva imagen" className="mt-2 w-24 h-24 object-cover border rounded" />
+          )}
         </div>
 
         <div className="flex justify-end gap-2 mt-4">

@@ -12,6 +12,7 @@ export default function ProductTable({ products, onEdit, onDelete }: Props) {
       <thead>
         <tr className="bg-gray-100">
           <th className="border px-2">ID</th>
+          <th className="border px-2">Imagen</th>
           <th className="border px-2">Nombre</th>
           <th className="border px-2">Precio</th>
           <th className="border px-2">Código</th>
@@ -22,6 +23,17 @@ export default function ProductTable({ products, onEdit, onDelete }: Props) {
         {products.map((p) => (
           <tr key={p.id}>
             <td className="border px-2">{p.id}</td>
+            <td className="border px-2 flex justify-center">
+              {p.image ? (
+                <img
+                  src={typeof p.image === "string" ? p.image : ""}
+                  alt={p.name}
+                  className="w-16 h-16 object-cover rounded"
+                />
+              ) : (
+                <span className="text-gray-400 text-sm">Sin imagen</span>
+              )}
+            </td>
             <td className="border px-2">{p.name}</td>
             <td className="border px-2">${p.price}</td>
             <td className="border px-2">{p.barcode || "-"}</td>
