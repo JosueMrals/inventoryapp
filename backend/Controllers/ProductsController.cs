@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Backend.Data;
 using Backend.Models;
+using Backend.DTOs;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -143,12 +144,3 @@ public class ProductsController : ControllerBase
     }
 }
 
-// DTO para crear/actualizar producto
-public class ProductCreateDto
-{
-    public string Name { get; set; } = "";
-    public decimal Price { get; set; } // Ojo con cultura (ver nota abajo)
-    public string? Description { get; set; }
-    public string? Barcode { get; set; }
-    public IFormFile? ImageUrl { get; set; }
-}

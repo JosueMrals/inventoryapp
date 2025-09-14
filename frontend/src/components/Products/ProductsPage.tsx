@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import Sidebar from "../Sidebar";
 import ProductModal from "./ProductModal";
 import ProductTable from "./ProductTable";
 import ProductSearch from "./ProductSearch";
@@ -8,7 +9,8 @@ import { db } from "@/offline/db";
 import { initSyncManager, isOnline } from "@/offline/syncManager";
 import api from "@/api/axios";
 
-const PAGE_SIZE = 20;
+
+const PAGE_SIZE = 100;
 
 // Type guard seguro para File (evita problemas con instanceof en TS)
 function isFile(value: unknown): value is File {
@@ -218,17 +220,14 @@ export default function ProductsPage() {
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Productos</h1>
 
-      {/* Input oculto para código de barras */}
-      <input
-        placeholder="Escanea código de barras"
-        ref={barcodeInputRef}
-        type="text"
-        style={{ position: "absolute", left: "-9999px" }}
-        autoComplete="off"
-        autoFocus
-      />
-
       <ProductSearch products={products} onSelect={(p) => setModalProduct(p)} />
+
+      <button
+        onClick={() => setModalProduct({ id: 0, name: "", price: 0 })}
+        className="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        Agregar Producto
+      </button>
 
       <ProductTable
         products={currentProducts}

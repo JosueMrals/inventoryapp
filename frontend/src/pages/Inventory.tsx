@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Sidebar from "@/components/Sidebar";
 
 export function Inventory() {
   const [codes, setCodes] = useState<string[]>([]);

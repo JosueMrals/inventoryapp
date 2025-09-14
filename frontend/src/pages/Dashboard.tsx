@@ -5,13 +5,14 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function Dashboard() {
   const [page, setPage] = useState("home");
+  const [sidebarWidth, setSidebarWidth] = useState(250);
 
   return (
     <div className="flex h-screen">
       {/* Sidebar recibe la función de navegación */}
-      <Sidebar onNavigate={setPage} />
+      <Sidebar onWidthChange={setSidebarWidth} onNavigate={setPage} />
 
-      <main className="flex-1 p-6">
+      <main className="transition-all duration-200 flex-1" style={{ marginLeft: sidebarWidth }}>
         {page === "home" && (
           <Card>
             <CardContent>
