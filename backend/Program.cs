@@ -15,7 +15,7 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(
                 "http://localhost:5173",
-                "https://inventoryapp-mocha.vercel.app"
+                "https://inventoryapp-au84.vercel.app"
                 // Agrega aquí otros dominios de frontend si los usas
             )
             .AllowAnyHeader()
